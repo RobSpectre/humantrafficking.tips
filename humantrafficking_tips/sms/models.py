@@ -2,13 +2,13 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
-class HTRUBotModel(models.Model):
+class HumanTraffickingSMSTipsModel(models.Model):
     date_created = models.DateTimeField(auto_now_add=True)
     date_modified = models.DateTimeField(auto_now=True)
     deleted = models.BooleanField(default=False)
 
 
-class Reporter(HTRUBotModel):
+class Reporter(HumanTraffickingSMSTipsModel):
     first_name = models.CharField(max_length=255, blank=True)
     last_name = models.CharField(max_length=255, blank=True)
     email_address = models.EmailField(blank=True)
@@ -24,29 +24,29 @@ class Reporter(HTRUBotModel):
             return "Unenrolled Reporter"
 
 
-class Tip(HTRUBotModel):
+class Tip(HumanTraffickingSMSTipsModel):
     users = models.ManyToManyField(User, related_name="users")
     related_reporter = models.ForeignKey(Reporter, null=True, related_name="tips")
 
 
-class Statement(HTRUBotModel):
+class Statement(HumanTraffickingSMSTipsModel):
     body = models.TextField(blank=True)
     related_tip = models.ForeignKey(Tip, null=True, related_name="statements")
 
 
-class Photo(HTRUBotModel):
+class Photo(HumanTraffickingSMSTipsModel):
     image = models.ImageField(blank=True)
     url = models.CharField(max_length=255, blank=True)
     related_tip = models.ForeignKey(Tip, null=True, related_name="photos")
 
 
-class Message(HTRUBotModel):
+class Message(HumanTraffickingSMSTipsModel):
     from_number = models.CharField(max_length=255)
     to_number = models.CharField(max_length=255)
     body = models.TextField()
 
 
-class Location(HTRUBotModel):
+class Location(HumanTraffickingSMSTipsModel):
     body = models.CharField(max_length=255, blank=True)
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=255, blank=True)
