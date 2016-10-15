@@ -20,6 +20,8 @@ urlpatterns = [
         name="start-handler"),
     url(r'^help/$', views.start,
         name="help"),
+    url(r'^info/$', views.info,
+        name="info"),
     url(r'^tip/$', views.tip_start,
         name="tip-start"),
     url(r'^tip/statement/(?P<tip>[0-9]+)$', views.tip_statement,

@@ -26,6 +26,9 @@ def index(request):
             response.redirect(reverse('sms:enroll'))
         elif request.COOKIES.get("tip", None):
             response.redirect(request.COOKIES["tip"])
+        elif "INFO" in request.POST['Body'].upper() and \
+             len(request.POST['Body']) == 4:
+            response.redirect(reverse("sms:info"))
         elif "TIP" in request.POST['Body'].upper():
             response.redirect(reverse("sms:tip-start"))
         else:
@@ -175,10 +178,8 @@ def start(request):
 
     response.message("Suspect you are seeing human trafficking? Text TIP to "
                      "share what you are seeing.\n\n"
-                     "Working a victim? Text INFO for 24/7 services you can "
-                     "offer.\n\n"
-                     "Unsure if you're seeing human trafficking? Text SIGNS "
-                     "for some info on red flags for trafficking.")
+                     "Working with a victim? Text INFO for 24/7 services "
+                     "you can offer.\n\n")
 
     resp = twilio_response(response)
     resp.set_cookie("start", reverse("sms:start-handler"))
@@ -240,7 +241,7 @@ def tip_statement(request, tip):
 
         if "DONE" in request.POST['Body'].upper():
             response.message("Got it - thank you for that info. Next question -"
-                             "where did you see this happen? Just text an "
+                             " where did you see this happen? Just text an "
                              "address or intersection.")
             resp = twilio_response(response)
             resp.set_cookie("tip", reverse("sms:tip-location", args=[tip.id]))
@@ -268,7 +269,7 @@ def tip_location(request, tip):
         location.save()
 
         response.message("Got it - thanks for providing the location."
-                         "Last question - do you have any photos of "
+                         " Last question - do you have any photos of "
                          "what you saw?\n\n If yes, just reply with them -"
                          " if not just reply NO.")
 
@@ -343,6 +344,19 @@ def help(request):
                      "Response Unit SMS tipline.")
 
     response.redirect(reverse("sms:start"))
+
+    return twilio_response(response)
+
+
+@csrf_exempt
+def info(request):
+    response = twiml.Response()
+
+    response.message("The National Human Trafficking Resource Center is "
+                     "available 24 hours a day, 7 days a week with real "
+                     "resources to assist human trafficking victims.\n\n"
+                     "They can be reached by calling (888) 373-7888 or "
+                     "by texting HELP to 233733 (BEFREE).")
 
     return twilio_response(response)
 
