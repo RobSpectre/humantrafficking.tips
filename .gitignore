@@ -13,8 +13,8 @@ local_settings.py
 build/
 docs/build/
 dist/
-htrubot/static/*
-htrubot/db.*
+humantrafficking_tips/static/*
+humantrafficking_tips/db.*
 node_modules
 **/media/**
 local.py
