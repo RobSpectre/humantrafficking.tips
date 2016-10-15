@@ -387,7 +387,7 @@ def send_tip(tip):
 
     html_message = render_to_string("tip_email.html", context)
 
-    mail_admins("[HTRUSMSBot] New tip from {0} "
+    mail_admins("[humantrafficking.tips] New tip from {0} "
                 "{1}.".format(tip.related_reporter.first_name,
                              tip.related_reporter.last_name),
                 "You received a new tip.",
