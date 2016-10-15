@@ -50,7 +50,7 @@ Run the server
 
 Configure a `Twilio phone number`_ to point to the `/sms` endpoint of your host.
 
-.. image:: https://travis-ci.org/RobSpectre/humantrafficking.tips/humantrafficking_tips/humantrafficking_tips/static/images/twilio_phone_number_screenshot.png?raw=true
+.. image:: https://github.com/RobSpectre/humantrafficking.tips/humantrafficking_tips/humantrafficking_tips/static/images/twilio_phone_number_screenshot.png?raw=true
     :target: https://www.twilio.com/console/phone-numbers/incoming
 
 Text "HELP" to the number you configured.
