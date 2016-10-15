@@ -7,13 +7,6 @@ A bot for receiving human trafficking tips via SMS and distributing to response 
 Powered by `Django`_ and `Twilio`_. Built at the `End Human Trafficking hackathon`_ in October 2016.
 
 
-.. image:: https://travis-ci.org/RobSpectre/err-twilio-lookup.svg?branch=master
-    :target: https://travis-ci.org/RobSpectre/err-twilio-lookup
-
-.. image:: https://coveralls.io/repos/RobSpectre/err-twilio-lookup/badge.png?branch=master
-    :target: https://coveralls.io/r/RobSpectre/err-twilio-lookup?branch=master
-
-
 **Table of Contents**
 
 
@@ -57,7 +50,7 @@ Run the server
 
 Configure a `Twilio phone number`_ to point to the `/sms` endpoint of your host.
 
-.. image:: https://travis-ci.org/RobSpectre/humantrafficking.tips/humantrafficking_tips/humantrafficking_tips/static/images/twilio_phone_number_screenshot.png
+.. image:: https://travis-ci.org/RobSpectre/humantrafficking.tips/humantrafficking_tips/humantrafficking_tips/static/images/twilio_phone_number_screenshot.png?raw=true
     :target: https://www.twilio.com/console/phone-numbers/incoming
 
 Text "HELP" to the number you configured.
