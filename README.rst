@@ -26,6 +26,14 @@ Install this `Django`_ application by first cloning the repository.
     git clone https://github.com/RobSpectre/humantrafficking.tips
 
 
+Install the Python dependencies.
+
+.. code-block:: bash
+
+    cd humantrafficking.tips
+    pip install -r requirements.txt
+
+
 Create a local configuration file and customize with your settings.
 
 .. code-block:: bash
