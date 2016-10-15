@@ -18,3 +18,4 @@ htrubot/db.*
 node_modules
 **/media/**
 local.py
+static/
