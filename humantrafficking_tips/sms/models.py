@@ -11,6 +11,7 @@ class HumanTraffickingSMSTipsModel(models.Model):
 class Reporter(HumanTraffickingSMSTipsModel):
     first_name = models.CharField(max_length=255, blank=True)
     last_name = models.CharField(max_length=255, blank=True)
+    name = models.CharField(max_length=255, blank=True)
     email_address = models.EmailField(blank=True)
     phone_number = models.CharField(max_length=255)
     tax_id = models.CharField(max_length=255, blank=True)
