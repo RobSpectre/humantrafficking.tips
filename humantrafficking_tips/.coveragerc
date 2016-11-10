@@ -1,0 +1,14 @@
+[run]
+source = sms
+
+[report]
+omit =
+    manage.py
+    humantrafficking_tips/*
+    **/migrations/**
+    **/apps.py
+
+show_missing = True
+
+exclude_lines = 
+    def __repr__

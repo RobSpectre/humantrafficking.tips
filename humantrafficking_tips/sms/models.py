@@ -17,7 +17,7 @@ class Reporter(HumanTraffickingSMSTipsModel):
     tax_id = models.CharField(max_length=255, blank=True)
     completed_enroll = models.BooleanField(default=False)
 
-    def __unicode__(self):
+    def __repr__(self):
         if self.first_name and self.last_name:
             return "{0}, {1}".format(self.last_name,
                                      self.first_name)
@@ -27,6 +27,7 @@ class Reporter(HumanTraffickingSMSTipsModel):
 
 class Tip(HumanTraffickingSMSTipsModel):
     users = models.ManyToManyField(User, related_name="users")
+    sent = models.BooleanField(default=False)
     related_reporter = models.ForeignKey(Reporter, null=True, related_name="tips")
 
 

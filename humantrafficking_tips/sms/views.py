@@ -1,5 +1,3 @@
-from random import choice
-
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
@@ -24,15 +22,14 @@ def index(request):
 
         if not reporter or not reporter.completed_enroll:
             response.redirect(reverse('sms:enroll'))
-        elif request.COOKIES.get("tip", None):
-            response.redirect(request.COOKIES["tip"])
         elif "INFO" in request.POST['Body'].upper() and \
              len(request.POST['Body']) == 4:
             response.redirect(reverse("sms:info"))
-        elif "TIP" in request.POST['Body'].upper():
-            response.redirect(reverse("sms:tip-start"))
-        else:
+        elif "HELP" in request.POST['Body'].upper() and \
+             len(request.POST['Body']) == 4:
             response.redirect(reverse("sms:help"))
+        else:
+            response.redirect(reverse("sms:tip"))
 
     return twilio_response(response)
 
@@ -120,177 +117,15 @@ def enroll_tax_id(request):
 
 
 @csrf_exempt
-def start(request):
-    response = twiml.Response()
-
-    response.message("Suspect you are seeing human trafficking? Text TIP to "
-                     "share what you are seeing.\n\n"
-                     "Working with a victim? Text INFO for 24/7 services "
-                     "you can offer.\n\n")
-
-    resp = twilio_response(response)
-    resp.set_cookie("start", reverse("sms:start-handler"))
-    return resp
-
-
-@csrf_exempt
-def start_handler(request):
-    response = twiml.Response()
-
-    if request.method == "POST":
-        if "TIP" in request.POST['Body'].upper():
-            response.redirect(reverse("sms:tip-start"))
-
-    resp = twilio_response(response)
-    resp.delete_cookie("start")
-    return resp
-
-
-@csrf_exempt
-def tip_start(request):
-    response = twiml.Response()
-
-    reporter = get_reporter(request)
-
-    if reporter:
-        tip = Tip(related_reporter=reporter)
-        tip.save()
-
-        response.message("Got it - we'll make this simple with three "
-                         "quick questions. First, what did you see?\n\n"
-                         "Write as much as you like - just say DONE when "
-                         "you are finished.")
-        resp = twilio_response(response)
-        resp.set_cookie("tip", reverse("sms:tip-statement", args=[tip.id]))
-        return resp
-
-    return twilio_response(response)
-
-
-@csrf_exempt
-def tip_statement(request, tip):
-    response = twiml.Response()
-
-    reporter = get_reporter(request)
-
-    encouragement = [
-        "Got it - anything else?",
-        "Thank you for that - is that all? Just say DONE if so or keep going.",
-        "Gotcha - keep writing what you saw until you are DONE.",
-        "Mmm hmm. What else did you see? If that's it, text DONE.",
-        "Understood - keep going as long as necessary. Just text DONE when "
-        "finished.",
-        "I hear you. Is that all? Text DONE if so, or keep going."
-    ]
-
-    if reporter:
-        tip = Tip.objects.get(id=tip)
-
-        if "DONE" in request.POST['Body'].upper():
-            response.message("Got it - thank you for that info. Next question -"
-                             " where did you see this happen? Just text an "
-                             "address or intersection.")
-            resp = twilio_response(response)
-            resp.set_cookie("tip", reverse("sms:tip-location", args=[tip.id]))
-            return resp
-        else:
-            response.message(choice(encouragement))
-            statement = Statement(related_tip=tip)
-            statement.body = request.POST['Body']
-            statement.save()
-
-            return twilio_response(response)
-
-    return twilio_response(response)
-
-
-@csrf_exempt
-def tip_location(request, tip):
-    response = twiml.Response()
-
-    reporter = get_reporter(request)
-
-    if reporter:
-        tip = Tip.objects.get(id=tip)
-        location = Location(related_tip=tip, body=request.POST['Body'])
-        location.save()
-
-        response.message("Got it - thanks for providing the location."
-                         " Last question - do you have any photos of "
-                         "what you saw?\n\n If yes, just reply with them -"
-                         " if not just reply NO.")
-
-        resp = twilio_response(response)
-        resp.set_cookie("tip", reverse("sms:tip-photo",
-                                       args=[tip.id]))
-        return resp
-
-    return twilio_response(response)
-
-
-@csrf_exempt
-def tip_photo(request, tip):
-    response = twiml.Response()
-
-    reporter = get_reporter(request)
-
-    if reporter:
-        tip = Tip.objects.get(id=tip)
-
-        if request.POST.get("NumMedia", None):
-            if int(request.POST['NumMedia']) > 0:
-                for i in range(int(request.POST['NumMedia'])):
-                    photo = Photo(related_tip=tip,
-                                  url=request.POST['MediaUrl{0}'.format(i)])
-                    photo.save()
-                response.message("Thank you for those {0} photos. Do you have "
-                                 "any other photographs of what you saw? If "
-                                 "so, "
-                                 "just reply with them. If not, just text NO."
-                                 "".format(int(request.POST['NumMedia'])))
-                return twilio_response(response)
-            else:
-                response.message("Got it - thanks. Is that all the info "
-                                 "you have for this tip? Text back YES or NO.")
-                resp = twilio_response(response)
-
-                resp.set_cookie("tip", reverse("sms:tip-confirm",
-                                               args=[tip.id]))
-                return resp
-
-
-@csrf_exempt
-def tip_confirm(request, tip):
-    response = twiml.Response()
-
-    reporter = get_reporter(request)
-
-    if reporter:
-        tip = Tip.objects.get(id=tip)
-
-        if "Y" in request.POST['Body'].upper():
-            send_tip(tip)
-            response.message("Thank you so much for the tip {0}.\n\n"
-                             "We appreciate you helping the Human "
-                             "Trafficking Response Unit with this important "
-                             "info - we'll be in touch soon if we have "
-                             "questions.".format(reporter.first_name))
-            resp = twilio_response(response)
-            resp.delete_cookie("tip")
-            return resp
-        else:
-            response.message("What else can we help you with?")
-            return twilio_response(response)
-
-
-@csrf_exempt
 def help(request):
     response = twiml.Response()
 
-    response.message("Thank you for contacting the Human Trafficking "
-                     "Response Unit SMS tipline.")
-
-    response.redirect(reverse("sms:start"))
+    response.message("Thank you for assisting the Human Trafficking Response "
+                     "Unit."
+                     "Working with a victim? Text INFO for 24/7 services "
+                     "you can offer.\n\n"
+                     "Got a tip to share? Just text what you are seeing or "
+                     "send photos to this number.")
 
     return twilio_response(response)
 
@@ -304,6 +139,92 @@ def info(request):
                      "resources to assist human trafficking victims.\n\n"
                      "They can be reached by calling (888) 373-7888 or "
                      "by texting HELP to 233733 (BEFREE).")
+
+    return twilio_response(response)
+
+
+@csrf_exempt
+def tip(request):
+    response = twiml.Response()
+
+    reporter = get_reporter(request)
+
+    if reporter:
+        if request.POST.get("NumMedia", None):
+            if int(request.POST['NumMedia']) > 0:
+                response.redirect(reverse("sms:tip-photo"))
+            else:
+                response.redirect(reverse("sms:tip-statement"))
+        else:
+            response.redirect(reverse("sms:tip-statement"))
+    else:
+        response.redirect(reverse("sms:enroll"))
+
+    return twilio_response(response)
+
+
+@csrf_exempt
+def tip_statement(request):
+    response = twiml.Response()
+
+    reporter = get_reporter(request)
+
+    if reporter:
+        reporter_tip = Tip.objects.filter(related_reporter=reporter,
+                                          sent=False)
+        if len(reporter_tip) > 0:
+            tip = reporter_tip[0]
+        else:
+            tip = Tip(related_reporter=reporter)
+            tip.save()
+            response.message("Thank you for sending in another tip to "
+                             "the Human Trafficking Unit. If you have "
+                             "further information and photos, simply "
+                             "respond here.")
+
+        statement = Statement(related_tip=tip)
+        statement.body = request.POST['Body']
+        statement.save()
+    else:
+        response.redirect(reverse("sms:enroll"))
+
+    return twilio_response(response)
+
+
+@csrf_exempt
+def tip_photo(request):
+    response = twiml.Response()
+
+    reporter = get_reporter(request)
+
+    if reporter:
+        reporter_tip = Tip.objects.filter(related_reporter=reporter,
+                                          sent=False)
+        if len(reporter_tip) > 0:
+            tip = reporter_tip[0]
+        else:
+            tip = Tip(related_reporter=reporter)
+            tip.save()
+
+        if request.POST.get("NumMedia", None):
+            if int(request.POST['NumMedia']) > 0:
+                for i in range(int(request.POST['NumMedia'])):
+                    photo = Photo(related_tip=tip,
+                                  url=request.POST['MediaUrl{0}'.format(i)])
+                    photo.save()
+                response.message("Thank you for those {0} photos. If you have "
+                                 "any further information or photos, simply "
+                                 "reply here."
+                                 "".format(int(request.POST['NumMedia'])))
+
+        if request.POST.get('Body', None):
+            statement = Statement(related_tip=tip)
+            statement.body = request.POST['Body']
+            statement.save()
+        else:
+            response.redirect(reverse("sms:tip-statement"))
+    else:
+        response.redirect(reverse("sms:enroll"))
 
     return twilio_response(response)
 
