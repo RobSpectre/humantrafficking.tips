@@ -1,16 +1,15 @@
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
-from django.core.mail import mail_admins
-from django.template.loader import render_to_string
 
 from twilio import twiml
 
 from .models import Reporter
 from .models import Tip
 from .models import Statement
-from .models import Location
 from .models import Photo
+
+from .tasks import email_tip
 
 
 @csrf_exempt
@@ -157,6 +156,17 @@ def tip(request):
                 response.redirect(reverse("sms:tip-statement"))
         else:
             response.redirect(reverse("sms:tip-statement"))
+
+        reporter_tip = Tip.objects.filter(related_reporter=reporter,
+                                          sent=False)
+
+        if len(reporter_tip) > 0:
+            tip = reporter_tip[0]
+        else:
+            tip = Tip(related_reporter=reporter)
+            tip.save()
+
+        email_tip.apply_async(tip, countdown="500")
     else:
         response.redirect(reverse("sms:enroll"))
 
@@ -239,26 +249,3 @@ def get_reporter(request):
         return query[0]
 
     return None
-
-
-def send_tip(tip):
-    statements = Statement.objects.filter(related_tip=tip)
-    locations = Location.objects.filter(related_tip=tip)
-    photos = Photo.objects.filter(related_tip=tip)
-    reporter = tip.related_reporter
-
-    context = {"tip": tip,
-               "statements": statements,
-               "locations": locations,
-               "photos": photos,
-               "reporter": reporter}
-
-    html_message = render_to_string("tip_email.html", context)
-
-    mail_admins("[humantrafficking.tips] New tip from {0} "
-                "{1}.".format(tip.related_reporter.first_name,
-                             tip.related_reporter.last_name),
-                "You received a new tip.",
-                html_message=html_message)
-
-    return

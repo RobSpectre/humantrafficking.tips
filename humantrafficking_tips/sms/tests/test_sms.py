@@ -8,6 +8,8 @@ from sms.models import Tip
 from sms.models import Statement
 from sms.models import Photo
 
+from mock import patch
+
 
 class HumanTraffickingTipsSmsTestClient(Client):
     def sms(self, body, path="/sms/", to="+15558675309", from_="+15556667777",
@@ -145,28 +147,60 @@ class TipRouting(HumanTraffickingTipsSmsTestCase):
                                 tax_id="12345")
         self.client = HumanTraffickingTipsSmsTestClient()
 
-    def test_statement_routing(self):
+    @patch('sms.tasks.email_tip.apply_async')
+    def test_statement_routing(self, email_tip):
+        email_tip.return_value = False
         response = self.client.sms("Test.", path="/sms/tip/")
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/statement/")
+        self.assertTrue(email_tip.called)
 
-    def test_photo_routing(self):
+    @patch('sms.tasks.email_tip.apply_async')
+    def test_photo_routing(self, email_tip):
+        email_tip.return_value = False
         response = self.client.sms("Test.", path="/sms/tip/",
                                    extra_params={"NumMedia": "1"})
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/photo/")
+        self.assertTrue(email_tip.called)
 
-    def test_photo_routing_num_media_zero(self):
+    @patch('sms.tasks.email_tip.apply_async')
+    def test_photo_routing_num_media_zero(self, email_tip):
+        email_tip.return_value = False
         response = self.client.sms("Test.", path="/sms/tip/",
                                    extra_params={"NumMedia": "0"})
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/statement/")
+        self.assertTrue(email_tip.called)
+
+
+class TipRoutingTipExists(HumanTraffickingTipsSmsTestCase):
+    def setUp(self):
+        reporter = Reporter.objects.create(name="Shrimply Pibbles",
+                                           phone_number="+15556667777",
+                                           completed_enroll=True,
+                                           tax_id="12345")
+        Tip.objects.create(related_reporter=reporter)
+
+        self.client = HumanTraffickingTipsSmsTestClient()
+
+    @patch('sms.tasks.email_tip.apply_async')
+    def test_tip_exists_but_not_sent(self, email_tip):
+        email_tip.return_value = False
+        response = self.client.sms("Test.", path="/sms/tip/",
+                                   extra_params={"NumMedia": "0"})
+
+        self.assert_twiml(response)
+        self.assertContains(response, "<Redirect>")
+        self.assertContains(response, "/sms/tip/statement/")
+        self.assertTrue(email_tip.called)
+        self.assertEquals(len(Tip.objects.all()), 1)
 
 
 class TipRoutingNoEnroll(HumanTraffickingTipsSmsTestCase):
