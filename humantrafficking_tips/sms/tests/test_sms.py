@@ -199,7 +199,7 @@ class TipRoutingTipExists(HumanTraffickingTipsSmsTestCase):
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/statement/")
-        self.assertTrue(email_tip.called)
+        self.assertFalse(email_tip.called)
         self.assertEquals(len(Tip.objects.all()), 1)
 
 

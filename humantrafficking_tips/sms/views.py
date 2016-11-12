@@ -149,14 +149,6 @@ def tip(request):
     reporter = get_reporter(request)
 
     if reporter:
-        if request.POST.get("NumMedia", None):
-            if int(request.POST['NumMedia']) > 0:
-                response.redirect(reverse("sms:tip-photo"))
-            else:
-                response.redirect(reverse("sms:tip-statement"))
-        else:
-            response.redirect(reverse("sms:tip-statement"))
-
         reporter_tip = Tip.objects.filter(related_reporter=reporter,
                                           sent=False)
 
@@ -165,8 +157,18 @@ def tip(request):
         else:
             tip = Tip(related_reporter=reporter)
             tip.save()
+            email_tip.apply_async(args=[tip.id], countdown=180)
+            response.message("Thank you for submitting a tip to the "
+                             "Human Trafficking Response Unit. Go ahead "
+                             "and text your info and photos here.\n\n")
 
-        email_tip.apply_async(tip, countdown="500")
+        if request.POST.get("NumMedia", None):
+            if int(request.POST['NumMedia']) > 0:
+                response.redirect(reverse("sms:tip-photo"))
+            else:
+                response.redirect(reverse("sms:tip-statement"))
+        else:
+            response.redirect(reverse("sms:tip-statement"))
     else:
         response.redirect(reverse("sms:enroll"))
 
