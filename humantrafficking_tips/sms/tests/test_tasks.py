@@ -103,6 +103,24 @@ class TestSmsTasks(TestCase):
         tip = Tip.objects.get(pk=self.tip.id)
         self.assertTrue(tip.sent)
 
+    @override_settings(ADMINS=[('Shrimply Pibbles', 'pibbles@shrimply.org')])
+    @override_settings(TWILIO_ACCOUNT_SID="ACxxxxx")
+    @override_settings(TWILIO_AUTH_TOKEN="yyyyyyyy")
+    @override_settings(TWILIO_PHONE_NUMBER="+15556667777")
+    @patch('twilio.rest.resources.Messages.create')
+    def test_email_tip_twilio_error(self, mock_messages):
+        mock_messages.side_effect = Exception("Busted!")
+        results = email_tip(self.tip.id)
+
+        self.assertTrue(results)
+        self.assertEquals(len(results), 1)
+        self.assertEquals(len(mail.outbox), 1)
+        self.assertEquals(mail.outbox[0].subject,
+                          "[humantrafficking.tips] New tip from Shrimply "
+                          "Pibbles")
+        tip = Tip.objects.get(pk=self.tip.id)
+        self.assertTrue(tip.sent)
+
 
 class TestSmsTasksWithSentTip(TestCase):
     def setUp(self):
