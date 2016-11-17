@@ -130,6 +130,9 @@ STATICFILES_DIRS = [
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATIC_URL = '/static/'
 
-from .local import *
+try:
+    from .local import *
+except:
+    pass
 
 CELERY_RESULT_BACKEND = 'django-db'
