@@ -7,4 +7,4 @@ script:
 env:
   - TOXENV: py34
 after_success:
-    coveralls
+    coveralls --rcfile=humantrafficking_tips/.coveragerc
