@@ -21,6 +21,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+SECRET_KEY = "CHANGE ME"
+
 
 # Application definition
 
