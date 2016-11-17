@@ -8,11 +8,10 @@ Powered by `Django`_ and `Twilio`_. Built at the `End Human Trafficking hackatho
 
 
 .. image:: https://travis-ci.org/RobSpectre/humantrafficking.tips.svg?branch=master
-    :target: https://travis-ci.org/RobSpectre/humantrafficking.tips
+:target: https://travis-ci.org/RobSpectre/humantrafficking.tips
 
- .. image::
- https://coveralls.io/repos/RobSpectre/humantrafficking.tips/badge.png?branch=master
-     :target: https://coveralls.io/r/RobSpectre/humantrafficking.tips?branch=master
+.. image:: https://coveralls.io/repos/github/RobSpectre/humantrafficking.tips/badge.svg?branch=master
+:target: https://coveralls.io/github/RobSpectre/humantrafficking.tips?branch=master
 
 
 **Table of Contents**
