@@ -3,7 +3,7 @@ from django.contrib import admin
 from .models import Reporter
 from .models import Statement
 from .models import Tip
-from .models import Photo 
+from .models import Photo
 
 
 admin.site.register(Reporter)

@@ -28,7 +28,9 @@ class Reporter(HumanTraffickingSMSTipsModel):
 class Tip(HumanTraffickingSMSTipsModel):
     users = models.ManyToManyField(User, related_name="users")
     sent = models.BooleanField(default=False)
-    related_reporter = models.ForeignKey(Reporter, null=True, related_name="tips")
+    related_reporter = models.ForeignKey(Reporter,
+                                         null=True,
+                                         related_name="tips")
 
 
 class Statement(HumanTraffickingSMSTipsModel):

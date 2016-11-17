@@ -71,8 +71,8 @@ def enroll_name(request):
             reporter.save()
 
             response.message("Much obliged - I have you registered as "
-                            "{0}.\n Next, can I have your Tax "
-                            "ID number?".format(reporter.name))
+                             "{0}.\n Next, can I have your Tax "
+                             "ID number?".format(reporter.name))
             resp = twilio_response(response)
             resp.set_cookie("enroll_step", reverse('sms:enroll-taxid'))
             return resp
