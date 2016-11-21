@@ -7,4 +7,4 @@ script:
 env:
   - TOXENV: py34
 after_success:
-    coveralls --base_dir humantrafficking_tips/
+    coveralls --base_dir ./humantrafficking_tips
