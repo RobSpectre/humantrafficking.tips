@@ -7,9 +7,11 @@ A bot for receiving human trafficking tips via SMS and distributing to response 
 Powered by `Django`_ and `Twilio`_. Built at the `End Human Trafficking hackathon`_ in October 2016.
 
 
-.. image:: https://travis-ci.org/RobSpectre/humantrafficking.tips.svg?branch=master :target: https://travis-ci.org/RobSpectre/humantrafficking.tips
+.. image:: https://travis-ci.org/RobSpectre/humantrafficking.tips.svg?branch=master
+    :target: https://travis-ci.org/RobSpectre/humantrafficking.tips
 
-.. image:: https://coveralls.io/repos/github/RobSpectre/humantrafficking.tips/badge.svg?branch=master :target: https://coveralls.io/github/RobSpectre/humantrafficking.tips?branch=master
+.. image:: https://coveralls.io/repos/github/RobSpectre/humantrafficking.tips/badge.svg?branch=master
+    :target: https://coveralls.io/github/RobSpectre/humantrafficking.tips?branch=master
 
 
 **Table of Contents**
