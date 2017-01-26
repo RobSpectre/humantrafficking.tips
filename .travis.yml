@@ -1,10 +1,10 @@
 language: python
 install:
   - pip install tox 
-  - pip install coveralls
+  - pip install python-coveralls
 script:
   - tox
 env:
   - TOXENV: py34
 after_success:
-    coveralls --rcfile=humantrafficking_tips/.coveragerc
+    coveralls -c humantrafficking_tips/.coveragerc -d humantrafficking_tips/.coverage
