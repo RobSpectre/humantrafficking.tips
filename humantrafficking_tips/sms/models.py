@@ -17,10 +17,9 @@ class Reporter(HumanTraffickingSMSTipsModel):
     tax_id = models.CharField(max_length=255, blank=True)
     completed_enroll = models.BooleanField(default=False)
 
-    def __repr__(self):
-        if self.first_name and self.last_name:
-            return "{0}, {1}".format(self.last_name,
-                                     self.first_name)
+    def __str__(self):
+        if self.name:
+            return "{0}".format(self.name)
         else:
             return "Unenrolled Reporter"
 
@@ -32,16 +31,29 @@ class Tip(HumanTraffickingSMSTipsModel):
                                          null=True,
                                          related_name="tips")
 
+    def __str__(self):
+        return "Tip submitted {0} by {1}".format(self.date_created,
+                                                 self.related_reporter.name)
+
 
 class Statement(HumanTraffickingSMSTipsModel):
     body = models.TextField(blank=True)
     related_tip = models.ForeignKey(Tip, null=True, related_name="statements")
+
+    def __str__(self):
+        return "Statement submitted {0} by {1}".format(self.date_created,
+                                                       self.related_tip.related_reporter.name)
 
 
 class Photo(HumanTraffickingSMSTipsModel):
     image = models.ImageField(blank=True)
     url = models.CharField(max_length=255, blank=True)
     related_tip = models.ForeignKey(Tip, null=True, related_name="photos")
+
+    def __str__(self):
+        name = self.related_tip.related_reporter.name
+        return "Photo submitted {0} by {1}".format(self.date_created,
+                                                   name)
 
 
 class Message(HumanTraffickingSMSTipsModel):
