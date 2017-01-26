@@ -41,8 +41,9 @@ class Statement(HumanTraffickingSMSTipsModel):
     related_tip = models.ForeignKey(Tip, null=True, related_name="statements")
 
     def __str__(self):
+        name = self.related_tip.related_reporter.name
         return "Statement submitted {0} by {1}".format(self.date_created,
-                                                       self.related_tip.related_reporter.name)
+                                                       name)
 
 
 class Photo(HumanTraffickingSMSTipsModel):

@@ -138,6 +138,16 @@ class TestEnrollReporterExists(HumanTraffickingTipsSmsTestCase):
         self.assertNotContains(response, "/enroll/")
         self.assertFalse(self.client.cookies.get('enroll_step', None))
 
+    def test_reporter_representation(self):
+        reporter = Reporter.objects.all()[0]
+        self.assertEquals(str(reporter),
+                          "Shrimply Pibbles")
+
+    def test_reporter_unenrolled_representations(self):
+        reporter = Reporter.objects.create(phone_number="+15556667777")
+        self.assertEquals(str(reporter),
+                          "Unenrolled Reporter")
+
 
 class TipRouting(HumanTraffickingTipsSmsTestCase):
     def setUp(self):
@@ -201,6 +211,12 @@ class TipRoutingTipExists(HumanTraffickingTipsSmsTestCase):
         self.assertContains(response, "/sms/tip/statement/")
         self.assertFalse(email_tip.called)
         self.assertEquals(len(Tip.objects.all()), 1)
+
+    def test_reporter_representation(self):
+        tip = Tip.objects.all()[0]
+        self.assertEquals(str(tip),
+                          "Tip submitted {0} by Shrimply "
+                          "Pibbles".format(tip.date_created))
 
 
 class TipRoutingNoEnroll(HumanTraffickingTipsSmsTestCase):
@@ -316,6 +332,20 @@ class TestStatement(HumanTraffickingTipsSmsTestCase):
         self.assert_twiml(response)
         self.assertContains(response, "photo")
         self.assertEquals(len(Tip.objects.all()), 1)
+
+        photo = Photo.objects.all()[0]
+        self.assertEquals(str(photo),
+                          "Photo submitted {0} by "
+                          "Shrimply Pibbles".format(photo.date_created))
+
+    def test_statement_representation(self):
+        reporter = Reporter.objects.all()[0]
+        tip = Tip.objects.create(related_reporter=reporter)
+        statement = Statement.objects.create(related_tip=tip,
+                                             body="Test.")
+        self.assertEquals(str(statement),
+                          "Statement submitted {0} by "
+                          "Shrimply Pibbles".format(statement.date_created))
 
 
 class TestKeywords(HumanTraffickingTipsSmsTestCase):
