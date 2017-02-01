@@ -1,4 +1,7 @@
-from http.cookies import SimpleCookie
+try:
+    from http.cookies import SimpleCookie
+except ImportError:
+    from Cookie import SimpleCookie
 
 from django.test import TestCase
 from django.test import Client
