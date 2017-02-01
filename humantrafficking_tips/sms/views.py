@@ -49,8 +49,8 @@ def enroll(request):
                       "Response Unit's SMS tipline. It looks like this " \
                       "is your first tip.\n\n" \
                       "To keep in touch, we'd like some contact info so " \
-                      "we can follow up. We'll only ask for this info " \
-                      "once.\n\n First, what's your name?"
+                      "we can follow up.\n\n" \
+                      "What's your name?  We'll only ask for this info once."
             response.message(welcome)
 
             resp = twilio_response(response)
