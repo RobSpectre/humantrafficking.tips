@@ -59,7 +59,7 @@ class TestEnrollNoReporter(HumanTraffickingTipsSmsTestCase):
         self.assertEquals(1, len(Reporter.objects.all()))
         self.assertTrue(Reporter.objects.all()[0].phone_number,
                         "+15556667777")
-        self.assertContains(response, "what's your name")
+        self.assertContains(response, "What's your name")
         self.assertEquals(self.client.cookies['enroll_step'].value,
                           "/sms/enroll/name/")
 
