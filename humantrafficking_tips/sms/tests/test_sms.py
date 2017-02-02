@@ -1,6 +1,6 @@
-try:
+try:  # pragma: no cover
     from http.cookies import SimpleCookie
-except ImportError:
+except ImportError:  # pragma: no cover
     from Cookie import SimpleCookie
 
 from django.test import TestCase
