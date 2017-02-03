@@ -1,5 +1,4 @@
 from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 
 from twilio import twiml
@@ -9,10 +8,11 @@ from .models import Tip
 from .models import Statement
 from .models import Photo
 
+from .decorators import sms_view
 from .tasks import process_tip
 
 
-@csrf_exempt
+@sms_view
 def index(request):
     response = twiml.Response()
 
@@ -30,92 +30,86 @@ def index(request):
         else:
             response.redirect(reverse("sms:tip"))
 
-    return twilio_response(response)
+    return response
 
 
-@csrf_exempt
+@sms_view
 def enroll(request):
     response = twiml.Response()
 
-    if request.method == "POST":
-        if request.COOKIES.get("enroll_step", None):
-            response.redirect(request.COOKIES.get("enroll_step"))
-        else:
-            reporter = Reporter()
-            reporter.phone_number = request.POST['From']
-            reporter.save()
+    if request.COOKIES.get("enroll_step", None):
+        response.redirect(request.COOKIES.get("enroll_step"))
+    else:
+        reporter = Reporter()
+        reporter.phone_number = request.POST['From']
+        reporter.save()
 
-            welcome = "Thank you for contacting the Human Trafficking " \
-                      "Response Unit's SMS tipline. It looks like this " \
-                      "is your first tip.\n\n" \
-                      "To keep in touch, we'd like some contact info so " \
-                      "we can follow up.\n\n" \
-                      "What's your name?  We'll only ask for this info once."
-            response.message(welcome)
+        welcome = "Thank you for contacting the Human Trafficking " \
+                  "Response Unit's SMS tipline. It looks like this " \
+                  "is your first tip.\n\n" \
+                  "To keep in touch, we'd like some contact info so " \
+                  "we can follow up.\n\n" \
+                  "What's your name?  We'll only ask for this info once."
+        response.message(welcome)
 
-            resp = twilio_response(response)
-            resp.set_cookie("enroll_step", reverse('sms:enroll-name'))
-            return resp
+        resp = twilio_response(response)
+        resp.set_cookie("enroll_step", reverse('sms:enroll-name'))
+        return resp
 
-    return twilio_response(response)
+    return response
 
 
-@csrf_exempt
+@sms_view
 def enroll_name(request):
     response = twiml.Response()
 
-    if request.method == "POST":
-        reporter = get_reporter(request)
-        if reporter:
-            reporter.name = request.POST['Body']
-            reporter.save()
+    reporter = get_reporter(request)
 
-            response.message("Much obliged - I have you registered as "
-                             "{0}.\n Next, can I have your Tax "
-                             "ID number?".format(reporter.name))
-            resp = twilio_response(response)
-            resp.set_cookie("enroll_step", reverse('sms:enroll-taxid'))
-            return resp
-        else:
-            response.redirect(reverse('sms:enroll'))
-            resp = twilio_response(response)
-            resp.delete_cookie("enroll_step")
-            return resp
+    if reporter:
+        reporter.name = request.POST['Body']
+        reporter.save()
 
-    return twilio_response(response)
+        response.message("Much obliged - I have you registered as "
+                         "{0}.\n Next, can I have your Tax "
+                         "ID number?".format(reporter.name))
+        resp = twilio_response(response)
+        resp.set_cookie("enroll_step", reverse('sms:enroll-taxid'))
+    else:
+        response.redirect(reverse('sms:enroll'))
+        resp = twilio_response(response)
+        resp.delete_cookie("enroll_step")
+
+    return resp
 
 
-@csrf_exempt
+@sms_view
 def enroll_tax_id(request):
     response = twiml.Response()
 
-    if request.method == "POST":
-        reporter = get_reporter(request)
-        if reporter:
-            reporter.tax_id = request.POST['Body']
-            reporter.completed_enroll = True
-            reporter.save()
+    reporter = get_reporter(request)
+    if reporter:
+        reporter.tax_id = request.POST['Body']
+        reporter.completed_enroll = True
+        reporter.save()
 
-            response.message("Thank you for that info. I have you "
-                             "enrolled as:\n{0} {1}\n\n"
-                             "To keep submitting tips, just text us "
-                             "at this number. Thank you again for helping "
-                             "the Human Trafficking Response Unit."
-                             "".format(reporter.name,
-                                       reporter.tax_id))
-            resp = twilio_response(response)
-            resp.delete_cookie("enroll_step")
-            return resp
-        else:
-            response.redirect(reverse('sms:enroll'))
-            resp = twilio_response(response)
-            resp.delete_cookie("enroll_step")
-            return resp
+        response.message("Thank you for that info. I have you "
+                         "enrolled as:\n{0} {1}\n\n"
+                         "To keep submitting tips, just text us "
+                         "at this number. Thank you again for helping "
+                         "the Human Trafficking Response Unit."
+                         "".format(reporter.name,
+                                   reporter.tax_id))
+        resp = twilio_response(response)
+        resp.delete_cookie("enroll_step")
+    else:
+        response.redirect(reverse('sms:enroll'))
+        resp = twilio_response(response)
+        resp.delete_cookie("enroll_step")
 
-    return twilio_response(response)
+    return resp
 
 
-@csrf_exempt
+@sms_view
 def help(request):
     response = twiml.Response()
 
@@ -126,10 +120,10 @@ def help(request):
                      "Got a tip to share? Just text what you are seeing or "
                      "send photos to this number.")
 
-    return twilio_response(response)
+    return response
 
 
-@csrf_exempt
+@sms_view
 def info(request):
     response = twiml.Response()
 
@@ -139,10 +133,10 @@ def info(request):
                      "They can be reached by calling (888) 373-7888 or "
                      "by texting HELP to 233733 (BEFREE).")
 
-    return twilio_response(response)
+    return response
 
 
-@csrf_exempt
+@sms_view
 def tip(request):
     response = twiml.Response()
 
@@ -172,10 +166,10 @@ def tip(request):
     else:
         response.redirect(reverse("sms:enroll"))
 
-    return twilio_response(response)
+    return response
 
 
-@csrf_exempt
+@sms_view
 def tip_statement(request):
     response = twiml.Response()
 
@@ -200,10 +194,10 @@ def tip_statement(request):
     else:
         response.redirect(reverse("sms:enroll"))
 
-    return twilio_response(response)
+    return response
 
 
-@csrf_exempt
+@sms_view
 def tip_photo(request):
     response = twiml.Response()
 
@@ -238,11 +232,11 @@ def tip_photo(request):
     else:
         response.redirect(reverse("sms:enroll"))
 
-    return twilio_response(response)
+    return response
 
 
 def twilio_response(response):
-    return HttpResponse(str(response), content_type="text/xml")
+    return HttpResponse(str(response), content_type="application/xml")
 
 
 def get_reporter(request):

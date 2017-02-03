@@ -3,8 +3,12 @@ try:  # pragma: no cover
 except ImportError:  # pragma: no cover
     from Cookie import SimpleCookie
 
+from django.http import QueryDict
 from django.test import TestCase
 from django.test import Client
+from django.test import override_settings
+
+from twilio.util import RequestValidator
 
 from sms.models import Reporter
 from sms.models import Tip
@@ -32,15 +36,25 @@ class HumanTraffickingTipsSmsTestClient(Client):
             for k, v in extra_params.items():
                 params[k] = v
 
-        return self.post(path, params)
+        HTTP_HOST = "example.com"
+        validator = RequestValidator("yyyyyyyy")
+        absolute_url = "http://{0}{1}".format(HTTP_HOST,
+                                              path)
+        signature = validator.compute_signature(absolute_url,
+                                                params)
+
+        return self.post(path, params,
+                         HTTP_X_TWILIO_SIGNATURE=signature,
+                         HTTP_HOST=HTTP_HOST)
 
 
+@override_settings(TWILIO_AUTH_TOKEN="yyyyyyyy")
 class HumanTraffickingTipsSmsTestCase(TestCase):
     def setUp(self):
         self.client = HumanTraffickingTipsSmsTestClient()
 
     def assert_twiml(self, response):
-        self.assertEqual(response.status_code, 200)
+        self.assertEquals(response.status_code, 200)
         self.assertContains(response, "<Response")
 
 
@@ -109,8 +123,7 @@ class TestEnrollNoReporter(HumanTraffickingTipsSmsTestCase):
     def test_enroll_name_get(self):
         response = self.client.get("/sms/enroll/name/")
 
-        self.assert_twiml(response)
-        self.assertContains(response, "<Response />")
+        self.assertTrue(response.status_code, 403)
 
     def test_enroll_taxid_redirect(self):
         response = self.client.sms("Test.", path="/sms/enroll/tax_id/")
@@ -122,8 +135,7 @@ class TestEnrollNoReporter(HumanTraffickingTipsSmsTestCase):
     def test_enroll_taxid_get(self):
         response = self.client.get("/sms/enroll/tax_id/")
 
-        self.assert_twiml(response)
-        self.assertContains(response, "<Response />")
+        self.assertEquals(response.status_code, 403)
 
 
 class TestEnrollReporterExists(HumanTraffickingTipsSmsTestCase):

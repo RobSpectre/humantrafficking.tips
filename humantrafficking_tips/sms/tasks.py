@@ -77,15 +77,16 @@ def sms_reporter(tip_id):
     statements_total = len(context['statements'])
     photos_total = len(context['photos'])
 
-    return client.messages.create(from_="+{0}"
-                                  "".format(settings.TWILIO_PHONE_NUMBER),
-                                  to=context['reporter'].phone_number,
-                                  body="Thank you for that tip with {0} "
-                                  "messages and {0} photos. The Human "
-                                  "Trafficking Response Unit "
-                                  "will be in touch soon with followup "
-                                  "questions.".format(statements_total,
-                                                      photos_total))
+    msg = client.messages.create(from_="+{0}"
+                                 "".format(settings.TWILIO_PHONE_NUMBER),
+                                 to=context['reporter'].phone_number,
+                                 body="Thank you for that tip with {0} "
+                                 "messages and {0} photos. The Human "
+                                 "Trafficking Response Unit "
+                                 "will be in touch soon with followup "
+                                 "questions.".format(statements_total,
+                                                     photos_total))
+    return msg.body
 
 
 def collect_tip_context(tip_id):
