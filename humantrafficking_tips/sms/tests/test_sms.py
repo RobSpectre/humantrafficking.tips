@@ -160,37 +160,37 @@ class TipRouting(HumanTraffickingTipsSmsTestCase):
                                 tax_id="12345")
         self.client = HumanTraffickingTipsSmsTestClient()
 
-    @patch('sms.tasks.email_tip.apply_async')
-    def test_statement_routing(self, email_tip):
-        email_tip.return_value = False
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_statement_routing(self, process_tip):
+        process_tip.return_value = False
         response = self.client.sms("Test.", path="/sms/tip/")
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/statement/")
-        self.assertTrue(email_tip.called)
+        self.assertTrue(process_tip.called)
 
-    @patch('sms.tasks.email_tip.apply_async')
-    def test_photo_routing(self, email_tip):
-        email_tip.return_value = False
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_photo_routing(self, process_tip):
+        process_tip.return_value = False
         response = self.client.sms("Test.", path="/sms/tip/",
                                    extra_params={"NumMedia": "1"})
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/photo/")
-        self.assertTrue(email_tip.called)
+        self.assertTrue(process_tip.called)
 
-    @patch('sms.tasks.email_tip.apply_async')
-    def test_photo_routing_num_media_zero(self, email_tip):
-        email_tip.return_value = False
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_photo_routing_num_media_zero(self, process_tip):
+        process_tip.return_value = False
         response = self.client.sms("Test.", path="/sms/tip/",
                                    extra_params={"NumMedia": "0"})
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/statement/")
-        self.assertTrue(email_tip.called)
+        self.assertTrue(process_tip.called)
 
 
 class TipRoutingTipExists(HumanTraffickingTipsSmsTestCase):
@@ -203,16 +203,16 @@ class TipRoutingTipExists(HumanTraffickingTipsSmsTestCase):
 
         self.client = HumanTraffickingTipsSmsTestClient()
 
-    @patch('sms.tasks.email_tip.apply_async')
-    def test_tip_exists_but_not_sent(self, email_tip):
-        email_tip.return_value = False
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_tip_exists_but_not_sent(self, process_tip):
+        process_tip.return_value = False
         response = self.client.sms("Test.", path="/sms/tip/",
                                    extra_params={"NumMedia": "0"})
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/statement/")
-        self.assertFalse(email_tip.called)
+        self.assertFalse(process_tip.called)
         self.assertEquals(len(Tip.objects.all()), 1)
 
     def test_reporter_representation(self):

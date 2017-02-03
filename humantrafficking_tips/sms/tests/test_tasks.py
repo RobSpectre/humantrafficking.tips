@@ -12,7 +12,10 @@ from sms.models import Tip
 from sms.models import Statement
 from sms.models import Photo
 
+from sms.tasks import process_tip
 from sms.tasks import email_tip
+from sms.tasks import sms_reporter
+from sms.tasks import collect_tip_context
 
 
 class TestSmsTasksWithNewStatement(TestCase):
@@ -27,13 +30,17 @@ class TestSmsTasksWithNewStatement(TestCase):
                              related_tip=self.tip)
 
     @override_settings(ADMINS=[('Shrimply Pibbles', 'pibbles@shrimply.org')])
+    @patch('sms.tasks.process_tip.apply_async')
     @patch('sms.tasks.email_tip.apply_async')
-    def test_email_tip_new_statement(self, task):
-        results = email_tip(self.tip.id)
+    @patch('sms.tasks.sms_reporter.apply_async')
+    def test_process_tip_new_statement(self, mock_sms_reporter,
+                                       mock_email_tip, mock_task):
+        results = process_tip(self.tip.id)
 
         self.assertFalse(results)
-        self.assertTrue(task.called)
-        self.assertEquals(len(mail.outbox), 0)
+        self.assertTrue(mock_task.called)
+        self.assertFalse(mock_email_tip.called)
+        self.assertFalse(mock_sms_reporter.called)
         self.assertFalse(self.tip.sent)
 
 
@@ -55,16 +62,20 @@ class TestSmsTasksWithNewPhoto(TestCase):
                              related_tip=self.tip)
 
     @override_settings(ADMINS=[('Shrimply Pibbles', 'pibbles@shrimply.org')])
+    @patch('sms.tasks.process_tip.apply_async')
     @patch('sms.tasks.email_tip.apply_async')
-    def test_email_tip_new_photo(self, task):
+    @patch('sms.tasks.sms_reporter.apply_async')
+    def test_process_tip_new_photo(self, mock_sms_reporter,
+                                   mock_email_tip, mock_task):
         statement = Statement.objects.all()[0]
         statement.date_created = statement.date_created - timedelta(minutes=6)
 
-        results = email_tip(self.tip.id)
+        results = process_tip(self.tip.id)
 
         self.assertFalse(results)
-        self.assertTrue(task.called)
-        self.assertEquals(len(mail.outbox), 0)
+        self.assertTrue(mock_task.called)
+        self.assertFalse(mock_sms_reporter.called)
+        self.assertFalse(mock_email_tip.called)
         self.assertFalse(self.tip.sent)
 
 
@@ -84,42 +95,44 @@ class TestSmsTasks(TestCase):
             Photo.objects.create(url="https://example.com/shrimply.jpg",
                                  related_tip=self.tip)
 
+    @patch('sms.tasks.email_tip.apply_async')
+    @patch('sms.tasks.sms_reporter.apply_async')
+    def test_process_tip(self, mock_sms_reporter, mock_email_tip):
+        results = process_tip(self.tip.id)
+
+        self.assertTrue(results)
+        self.assertTrue(mock_sms_reporter.called)
+        self.assertTrue(mock_email_tip.called)
+
+        tip = Tip.objects.all()[0]
+        self.assertTrue(tip.sent)
+
+    @override_settings(ADMINS=[('Shrimply Pibbles', 'pibbles@shrimply.org')])
+    def test_email_tip(self):
+        results = email_tip(self.tip.id)
+
+        self.assertTrue(results)
+        self.assertEquals(len(results), 1)
+        self.assertEquals(len(mail.outbox), 1)
+
     @override_settings(ADMINS=[('Shrimply Pibbles', 'pibbles@shrimply.org')])
     @override_settings(TWILIO_ACCOUNT_SID="ACxxxxx")
     @override_settings(TWILIO_AUTH_TOKEN="yyyyyyyy")
-    @override_settings(TWILIO_PHONE_NUMBER="+15556667777")
+    @override_settings(TWILIO_PHONE_NUMBER="15556667777")
     @patch('twilio.rest.resources.Messages.create')
-    def test_email_tip(self, mock_messages):
+    def test_sms_reporter(self, mock_messages):
         mock_messages.return_value = True
-        results = email_tip(self.tip.id)
+        results = sms_reporter(self.tip.id)
 
         self.assertTrue(results)
-        self.assertEquals(len(results), 1)
-        self.assertEquals(len(mail.outbox), 1)
-        self.assertEquals(mail.outbox[0].subject,
-                          "[humantrafficking.tips] New tip from Shrimply "
-                          "Pibbles")
-        self.assertTrue(mock_messages.called)
-        tip = Tip.objects.get(pk=self.tip.id)
-        self.assertTrue(tip.sent)
-
-    @override_settings(ADMINS=[('Shrimply Pibbles', 'pibbles@shrimply.org')])
-    @override_settings(TWILIO_ACCOUNT_SID="ACxxxxx")
-    @override_settings(TWILIO_AUTH_TOKEN="yyyyyyyy")
-    @override_settings(TWILIO_PHONE_NUMBER="+15556667777")
-    @patch('twilio.rest.resources.Messages.create')
-    def test_email_tip_twilio_error(self, mock_messages):
-        mock_messages.side_effect = Exception("Busted!")
-        results = email_tip(self.tip.id)
-
-        self.assertTrue(results)
-        self.assertEquals(len(results), 1)
-        self.assertEquals(len(mail.outbox), 1)
-        self.assertEquals(mail.outbox[0].subject,
-                          "[humantrafficking.tips] New tip from Shrimply "
-                          "Pibbles")
-        tip = Tip.objects.get(pk=self.tip.id)
-        self.assertTrue(tip.sent)
+        mock_messages.assert_called_once_with(from_="+15556667777",
+                                              to=self.reporter.phone_number,
+                                              body="Thank you for that tip "
+                                                   "with 1 messages and 1 "
+                                                   "photos. The Human "
+                                                   "Trafficking Response Unit"
+                                                   " will be in touch soon with"
+                                                   " followup questions.")
 
 
 class TestSmsTasksWithSentTip(TestCase):
@@ -133,9 +146,9 @@ class TestSmsTasksWithSentTip(TestCase):
         self.tip.save()
 
     @override_settings(ADMINS=[('Shrimply Pibbles', 'pibbles@shrimply.org')])
-    @patch('sms.tasks.email_tip.apply_async')
-    def test_email_tip_when_tip_already_sent(self, task):
-        results = email_tip(self.tip.id)
+    @patch('sms.tasks.sms_reporter.apply_async')
+    def test_process_tip_when_tip_already_sent(self, task):
+        results = process_tip(self.tip.id)
 
         self.assertFalse(results)
         self.assertFalse(task.called)

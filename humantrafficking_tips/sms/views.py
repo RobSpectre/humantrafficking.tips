@@ -9,7 +9,7 @@ from .models import Tip
 from .models import Statement
 from .models import Photo
 
-from .tasks import email_tip
+from .tasks import process_tip
 
 
 @csrf_exempt
@@ -157,7 +157,7 @@ def tip(request):
         else:
             tip = Tip(related_reporter=reporter)
             tip.save()
-            email_tip.apply_async(args=[tip.id], countdown=180)
+            process_tip.apply_async(args=[tip.id], countdown=180)
             response.message("Thank you for submitting a tip to the "
                              "Human Trafficking Response Unit. Go ahead "
                              "and text your info and photos here.\n\n")
