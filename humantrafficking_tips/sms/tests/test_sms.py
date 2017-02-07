@@ -3,7 +3,6 @@ try:  # pragma: no cover
 except ImportError:  # pragma: no cover
     from Cookie import SimpleCookie
 
-from django.http import QueryDict
 from django.test import TestCase
 from django.test import Client
 from django.test import override_settings
@@ -65,19 +64,23 @@ class TestEnrollNoReporter(HumanTraffickingTipsSmsTestCase):
         self.assert_twiml(response)
         self.assertContains(response, "Redirect")
         self.assertContains(response, "/enroll/")
+        self.assertFalse(Tip.objects.all())
 
-    def test_enroll_ask_for_name(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_enroll_ask_for_name(self, mock_process_tip):
         response = self.client.sms("Test.", path="/sms/enroll/")
 
         self.assert_twiml(response)
         self.assertEquals(1, len(Reporter.objects.all()))
         self.assertTrue(Reporter.objects.all()[0].phone_number,
                         "+15556667777")
-        self.assertContains(response, "What's your name")
+        self.assertContains(response, "hat's your name")
         self.assertEquals(self.client.cookies['enroll_step'].value,
                           "/sms/enroll/name/")
+        self.assertTrue(mock_process_tip.called)
 
-    def test_enroll_ask_for_tax_id(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_enroll_ask_for_tax_id(self, mock_process_tip):
         self.client.sms("Test.", path="/sms/enroll/")
         response = self.client.sms("Shrimply Pibbles",
                                    path="/sms/enroll/name/")
@@ -89,8 +92,11 @@ class TestEnrollNoReporter(HumanTraffickingTipsSmsTestCase):
                           "Shrimply Pibbles")
         self.assertEquals(self.client.cookies['enroll_step'].value,
                           "/sms/enroll/tax_id/")
+        self.assertTrue(mock_process_tip.called)
+        self.assertEquals(1, len(Tip.objects.all()))
 
-    def test_enroll_complete(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_enroll_complete(self, mock_process_tip):
         self.client.sms("Test.", path="/sms/enroll/")
         self.client.sms("Shrimply Pibbles",
                         path="/sms/enroll/name/")
@@ -104,38 +110,48 @@ class TestEnrollNoReporter(HumanTraffickingTipsSmsTestCase):
         self.assertEquals(Reporter.objects.all()[0].tax_id, "12345")
         self.assertTrue(Reporter.objects.all()[0].completed_enroll)
         self.assertEquals(self.client.cookies['enroll_step'].value, '')
+        self.assertTrue(mock_process_tip.called)
+        self.assertEquals(1, len(Tip.objects.all()))
 
-    def test_enroll_cookie_routing(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_enroll_cookie_routing(self, mock_process_tip):
         self.client.cookies = SimpleCookie({"enroll_step":
                                             "/sms/enroll/test/"})
         response = self.client.sms("Test.", path="/sms/enroll/")
 
         self.assert_twiml(response)
         self.assertContains(response, "/sms/enroll/test/")
-
-    def test_enroll_name_redirect(self):
-        response = self.client.sms("Test.", path="/sms/enroll/name/")
-
-        self.assert_twiml(response)
-        self.assertContains(response, "<Redirect>")
-        self.assertContains(response, "/sms/enroll/")
+        self.assertTrue(mock_process_tip.called)
+        self.assertEquals(1, len(Tip.objects.all()))
 
     def test_enroll_name_get(self):
         response = self.client.get("/sms/enroll/name/")
 
         self.assertTrue(response.status_code, 403)
 
-    def test_enroll_taxid_redirect(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_enroll_taxid_redirect(self, mock_process_tip):
         response = self.client.sms("Test.", path="/sms/enroll/tax_id/")
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/enroll/")
+        self.assertTrue(mock_process_tip.called)
+        self.assertEquals(1, len(Tip.objects.all()))
 
     def test_enroll_taxid_get(self):
         response = self.client.get("/sms/enroll/tax_id/")
 
         self.assertEquals(response.status_code, 403)
+
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_enroll_first_statement_gets_saved(self, mock_process_tip):
+        response = self.client.sms("Shizzle.", path="/sms/enroll/")
+
+        self.assert_twiml(response)
+        self.assertEquals(1, len(Statement.objects.all()))
+        self.assertTrue(mock_process_tip.called)
+        self.assertEquals(1, len(Tip.objects.all()))
 
 
 class TestEnrollReporterExists(HumanTraffickingTipsSmsTestCase):
@@ -178,9 +194,11 @@ class TipRouting(HumanTraffickingTipsSmsTestCase):
         response = self.client.sms("Test.", path="/sms/tip/")
 
         self.assert_twiml(response)
+        self.assertContains(response, "Thank you")
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/statement/")
         self.assertTrue(process_tip.called)
+        self.assertEquals(1, len(Tip.objects.all()))
 
     @patch('sms.tasks.process_tip.apply_async')
     def test_photo_routing(self, process_tip):
@@ -192,6 +210,7 @@ class TipRouting(HumanTraffickingTipsSmsTestCase):
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/photo/")
         self.assertTrue(process_tip.called)
+        self.assertEquals(1, len(Tip.objects.all()))
 
     @patch('sms.tasks.process_tip.apply_async')
     def test_photo_routing_num_media_zero(self, process_tip):
@@ -203,6 +222,7 @@ class TipRouting(HumanTraffickingTipsSmsTestCase):
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/statement/")
         self.assertTrue(process_tip.called)
+        self.assertEquals(1, len(Tip.objects.all()))
 
 
 class TipRoutingTipExists(HumanTraffickingTipsSmsTestCase):
@@ -211,7 +231,9 @@ class TipRoutingTipExists(HumanTraffickingTipsSmsTestCase):
                                            phone_number="+15556667777",
                                            completed_enroll=True,
                                            tax_id="12345")
-        Tip.objects.create(related_reporter=reporter)
+        tip = Tip.objects.create(related_reporter=reporter)
+        tip.new = False
+        tip.save()
 
         self.client = HumanTraffickingTipsSmsTestClient()
 
@@ -226,6 +248,7 @@ class TipRoutingTipExists(HumanTraffickingTipsSmsTestCase):
         self.assertContains(response, "/sms/tip/statement/")
         self.assertFalse(process_tip.called)
         self.assertEquals(len(Tip.objects.all()), 1)
+        self.assertNotContains(response, "<Message>")
 
     def test_reporter_representation(self):
         tip = Tip.objects.all()[0]
@@ -235,26 +258,35 @@ class TipRoutingTipExists(HumanTraffickingTipsSmsTestCase):
 
 
 class TipRoutingNoEnroll(HumanTraffickingTipsSmsTestCase):
-    def test_tip_no_enroll(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_tip_no_enroll(self, mock_process_tip):
         response = self.client.sms("Test.", path="/sms/tip/")
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/enroll/")
+        self.assertTrue(mock_process_tip.called)
+        self.assertEquals(len(Tip.objects.all()), 1)
 
-    def test_photo_no_enroll(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_photo_no_enroll(self, mock_process_tip):
         response = self.client.sms("Test.", path="/sms/tip/photo/")
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/enroll/")
+        self.assertTrue(mock_process_tip.called)
+        self.assertEquals(len(Tip.objects.all()), 1)
 
-    def test_statement_no_enroll(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_statement_no_enroll(self, mock_process_tip):
         response = self.client.sms("Test.", path="/sms/tip/statement/")
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/enroll/")
+        self.assertTrue(mock_process_tip.called)
+        self.assertEquals(len(Tip.objects.all()), 1)
 
 
 class TestStatement(HumanTraffickingTipsSmsTestCase):
@@ -265,16 +297,18 @@ class TestStatement(HumanTraffickingTipsSmsTestCase):
                                 tax_id="12345")
         self.client = HumanTraffickingTipsSmsTestClient()
 
-    def test_first_statement(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_first_statement(self, mock_process_tip):
         response = self.client.sms("I found some shady shizzle.",
                                    path="/sms/tip/statement/")
 
         self.assert_twiml(response)
-        self.assertContains(response, "Thank you")
         self.assertEquals(len(Tip.objects.all()), 1)
         self.assertTrue("shizzle" in Statement.objects.all()[0].body)
+        self.assertTrue(mock_process_tip.called)
 
-    def test_second_statement(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_second_statement(self, mock_process_tip):
         self.client.sms("I found some shady shizzle.",
                         path="/sms/tip/statement/")
         response = self.client.sms("I found more shady shizzle.",
@@ -286,8 +320,20 @@ class TestStatement(HumanTraffickingTipsSmsTestCase):
         self.assertEquals(len(Statement.objects.all()), 2)
         self.assertEquals(Statement.objects.all()[1].related_tip,
                           Tip.objects.all()[0])
+        self.assertTrue(mock_process_tip.called)
 
-    def test_photo(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_empty_statement(self, mock_process_tip):
+        response = self.client.sms("",
+                                   path="/sms/tip/statement/")
+
+        self.assert_twiml(response)
+        self.assertEquals(len(Tip.objects.all()), 1)
+        self.assertFalse(Statement.objects.all())
+        self.assertTrue(mock_process_tip.called)
+
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_photo(self, mock_process_tip):
         response = self.client.sms("Photos of shady shizzle.",
                                    path="/sms/tip/photo/",
                                    extra_params={"NumMedia": "1",
@@ -300,8 +346,10 @@ class TestStatement(HumanTraffickingTipsSmsTestCase):
         self.assertEquals(len(Photo.objects.all()), 1)
         self.assertEquals(Photo.objects.all()[0].related_tip,
                           Tip.objects.all()[0])
+        self.assertTrue(mock_process_tip.called)
 
-    def test_multiple_photos(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_multiple_photos(self, mock_process_tip):
         response = self.client.sms("",
                                    path="/sms/tip/photo/",
                                    extra_params={"NumMedia": "2",
@@ -318,8 +366,10 @@ class TestStatement(HumanTraffickingTipsSmsTestCase):
                           Tip.objects.all()[0])
         self.assertEquals(Photo.objects.all()[1].related_tip,
                           Tip.objects.all()[0])
+        self.assertTrue(mock_process_tip.called)
 
-    def test_photo_no_body(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_photo_no_body(self, mock_process_tip):
         response = self.client.sms("", path="/sms/tip/photo/",
                                    extra_params={"NumMedia": "1",
                                                  "MediaUrl0": "https://example"
@@ -329,15 +379,21 @@ class TestStatement(HumanTraffickingTipsSmsTestCase):
         self.assertContains(response, "photo")
         self.assertEquals(len(Photo.objects.all()), 1)
         self.assertEquals(len(Statement.objects.all()), 0)
+        self.assertTrue(mock_process_tip.called)
+        self.assertEquals(len(Tip.objects.all()), 1)
 
-    def test_photo_no_media(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_photo_no_media(self, mock_process_tip):
         response = self.client.sms("", path="/sms/tip/photo/")
 
         self.assert_twiml(response)
         self.assertContains(response, "<Redirect>")
         self.assertContains(response, "/sms/tip/statement/")
+        self.assertTrue(mock_process_tip.called)
+        self.assertEquals(len(Tip.objects.all()), 1)
 
-    def test_photo_tip_exists(self):
+    @patch('sms.tasks.process_tip.apply_async')
+    def test_photo_tip_exists(self, mock_process_tip):
         self.client.sms("I saw shady shizzle.", path="/sms/tip/statement/")
         response = self.client.sms("", path="/sms/tip/photo/",
                                    extra_params={"NumMedia": "1",
@@ -352,6 +408,8 @@ class TestStatement(HumanTraffickingTipsSmsTestCase):
         self.assertEquals(str(photo),
                           "Photo submitted {0} by "
                           "Shrimply Pibbles".format(photo.date_created))
+        self.assertEquals(len(Tip.objects.all()), 1)
+        self.assertTrue(mock_process_tip.called_once)
 
     def test_statement_representation(self):
         reporter = Reporter.objects.all()[0]
@@ -376,21 +434,25 @@ class TestKeywords(HumanTraffickingTipsSmsTestCase):
 
         self.assert_twiml(response)
         self.assertContains(response, "/sms/help/")
+        self.assertEquals(0, len(Tip.objects.all()))
 
     def test_help(self):
         response = self.client.sms("Help", path="/sms/help/")
 
         self.assert_twiml(response)
         self.assertContains(response, "Text INFO")
+        self.assertEquals(0, len(Tip.objects.all()))
 
     def test_info_routing(self):
         response = self.client.sms("Info")
 
         self.assert_twiml(response)
         self.assertContains(response, "/sms/info/")
+        self.assertEquals(0, len(Tip.objects.all()))
 
     def test_info(self):
         response = self.client.sms("Info", path="/sms/info/")
 
         self.assert_twiml(response)
         self.assertContains(response, "BEFREE")
+        self.assertEquals(0, len(Tip.objects.all()))

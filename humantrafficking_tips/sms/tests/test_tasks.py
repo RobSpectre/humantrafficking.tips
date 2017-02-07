@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.core import mail
 
 from mock import patch
+from mock import Mock
 
 from sms.models import Reporter
 from sms.models import Tip
@@ -15,7 +16,6 @@ from sms.models import Photo
 from sms.tasks import process_tip
 from sms.tasks import email_tip
 from sms.tasks import sms_reporter
-from sms.tasks import collect_tip_context
 
 
 class TestSmsTasksWithNewStatement(TestCase):
@@ -121,7 +121,9 @@ class TestSmsTasks(TestCase):
     @override_settings(TWILIO_PHONE_NUMBER="15556667777")
     @patch('twilio.rest.resources.Messages.create')
     def test_sms_reporter(self, mock_messages):
-        mock_messages.return_value = True
+        mock_message = Mock()
+        mock_message.body.return_value = True
+        mock_messages.return_value = mock_message
         results = sms_reporter(self.tip.id)
 
         self.assertTrue(results)

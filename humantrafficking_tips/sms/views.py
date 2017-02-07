@@ -3,53 +3,51 @@ from django.urls import reverse
 
 from twilio import twiml
 
-from .models import Reporter
-from .models import Tip
 from .models import Statement
 from .models import Photo
 
 from .decorators import sms_view
-from .tasks import process_tip
+from .decorators import tip_view
 
 
 @sms_view
-def index(request):
+def index(request, reporter=None):
     response = twiml.Response()
 
-    if request.method == "POST":
-        reporter = get_reporter(request)
-
-        if not reporter or not reporter.completed_enroll:
-            response.redirect(reverse('sms:enroll'))
-        elif "INFO" in request.POST['Body'].upper() and \
-             len(request.POST['Body']) == 4:
-            response.redirect(reverse("sms:info"))
-        elif "HELP" in request.POST['Body'].upper() and \
-             len(request.POST['Body']) == 4:
-            response.redirect(reverse("sms:help"))
-        else:
-            response.redirect(reverse("sms:tip"))
+    if not reporter or not reporter.completed_enroll:
+        response.redirect(reverse('sms:enroll'))
+    elif "INFO" in request.POST['Body'].upper() and \
+         len(request.POST['Body']) == 4:
+        response.redirect(reverse("sms:info"))
+    elif "HELP" in request.POST['Body'].upper() and \
+         len(request.POST['Body']) == 4:
+        response.redirect(reverse("sms:help"))
+    else:
+        response.redirect(reverse("sms:tip"))
 
     return response
 
 
-@sms_view
-def enroll(request):
+@tip_view
+def enroll(request, reporter=None, tip=None):
     response = twiml.Response()
 
     if request.COOKIES.get("enroll_step", None):
         response.redirect(request.COOKIES.get("enroll_step"))
     else:
-        reporter = Reporter()
-        reporter.phone_number = request.POST['From']
-        reporter.save()
+        save_statement(request, tip)
+
+        tip.new = False
+        tip.save()
 
         welcome = "Thank you for contacting the Human Trafficking " \
                   "Response Unit's SMS tipline. It looks like this " \
                   "is your first tip.\n\n" \
                   "To keep in touch, we'd like some contact info so " \
                   "we can follow up.\n\n" \
-                  "What's your name?  We'll only ask for this info once."
+                  "We'll only ask for this info once - two questions, " \
+                  "30 seconds.\n\n" \
+                  "First, what's your name?"
         response.message(welcome)
 
         resp = twilio_response(response)
@@ -59,44 +57,37 @@ def enroll(request):
     return response
 
 
-@sms_view
-def enroll_name(request):
+@tip_view
+def enroll_name(request, reporter=None, tip=None):
     response = twiml.Response()
 
-    reporter = get_reporter(request)
+    reporter.name = request.POST['Body']
+    reporter.save()
 
-    if reporter:
-        reporter.name = request.POST['Body']
-        reporter.save()
-
-        response.message("Much obliged - I have you registered as "
-                         "{0}.\n Next, can I have your Tax "
-                         "ID number?".format(reporter.name))
-        resp = twilio_response(response)
-        resp.set_cookie("enroll_step", reverse('sms:enroll-taxid'))
-    else:
-        response.redirect(reverse('sms:enroll'))
-        resp = twilio_response(response)
-        resp.delete_cookie("enroll_step")
+    response.message("Much obliged - I have you registered as "
+                     "{0}.\n Next, can I have your Tax "
+                     "ID number?".format(reporter.name))
+    resp = twilio_response(response)
+    resp.set_cookie("enroll_step", reverse('sms:enroll-taxid'))
 
     return resp
 
 
-@sms_view
-def enroll_tax_id(request):
+@tip_view
+def enroll_tax_id(request, reporter=None, tip=None):
     response = twiml.Response()
 
-    reporter = get_reporter(request)
-    if reporter:
+    if reporter and reporter.name:
         reporter.tax_id = request.POST['Body']
         reporter.completed_enroll = True
         reporter.save()
 
         response.message("Thank you for that info. I have you "
                          "enrolled as:\n{0} {1}\n\n"
-                         "To keep submitting tips, just text us "
-                         "at this number. Thank you again for helping "
-                         "the Human Trafficking Response Unit."
+                         "Thank you for contacting "
+                         "the Human Trafficking Response Unit - "
+                         "you can continue sharing your tip by "
+                         "responding with text and photos."
                          "".format(reporter.name,
                                    reporter.tax_id))
         resp = twilio_response(response)
@@ -110,7 +101,7 @@ def enroll_tax_id(request):
 
 
 @sms_view
-def help(request):
+def help(request, reporter=None, tip=None):
     response = twiml.Response()
 
     response.message("Thank you for assisting the Human Trafficking Response "
@@ -124,7 +115,7 @@ def help(request):
 
 
 @sms_view
-def info(request):
+def info(request, reporter=None, tip=None):
     response = twiml.Response()
 
     response.message("The National Human Trafficking Resource Center is "
@@ -136,25 +127,17 @@ def info(request):
     return response
 
 
-@sms_view
-def tip(request):
+@tip_view
+def tip(request, reporter=None, tip=None):
     response = twiml.Response()
 
-    reporter = get_reporter(request)
-
-    if reporter:
-        reporter_tip = Tip.objects.filter(related_reporter=reporter,
-                                          sent=False)
-
-        if len(reporter_tip) > 0:
-            tip = reporter_tip[0]
-        else:
-            tip = Tip(related_reporter=reporter)
-            tip.save()
-            process_tip.apply_async(args=[tip.id], countdown=180)
-            response.message("Thank you for submitting a tip to the "
+    if reporter and reporter.completed_enroll:
+        if tip.new:
+            response.message("Thank you for submitting another tip to the "
                              "Human Trafficking Response Unit. Go ahead "
                              "and text your info and photos here.\n\n")
+            tip.new = False
+            tip.save()
 
         if request.POST.get("NumMedia", None):
             if int(request.POST['NumMedia']) > 0:
@@ -169,49 +152,23 @@ def tip(request):
     return response
 
 
-@sms_view
-def tip_statement(request):
+@tip_view
+def tip_statement(request, reporter=None, tip=None):
     response = twiml.Response()
 
-    reporter = get_reporter(request)
-
-    if reporter:
-        reporter_tip = Tip.objects.filter(related_reporter=reporter,
-                                          sent=False)
-        if len(reporter_tip) > 0:
-            tip = reporter_tip[0]
-        else:
-            tip = Tip(related_reporter=reporter)
-            tip.save()
-            response.message("Thank you for sending in another tip to "
-                             "the Human Trafficking Unit. If you have "
-                             "further information and photos, simply "
-                             "respond here.")
-
-        statement = Statement(related_tip=tip)
-        statement.body = request.POST['Body']
-        statement.save()
+    if reporter and reporter.completed_enroll:
+        save_statement(request, tip)
     else:
         response.redirect(reverse("sms:enroll"))
 
     return response
 
 
-@sms_view
-def tip_photo(request):
+@tip_view
+def tip_photo(request, reporter=None, tip=None):
     response = twiml.Response()
 
-    reporter = get_reporter(request)
-
-    if reporter:
-        reporter_tip = Tip.objects.filter(related_reporter=reporter,
-                                          sent=False)
-        if len(reporter_tip) > 0:
-            tip = reporter_tip[0]
-        else:
-            tip = Tip(related_reporter=reporter)
-            tip.save()
-
+    if reporter and reporter.completed_enroll:
         if request.POST.get("NumMedia", None):
             if int(request.POST['NumMedia']) > 0:
                 for i in range(int(request.POST['NumMedia'])):
@@ -219,16 +176,14 @@ def tip_photo(request):
                                   url=request.POST['MediaUrl{0}'.format(i)])
                     photo.save()
                 response.message("Thank you for those {0} photos. If you have "
-                                 "any further information or photos, simply "
+                                 "any further information or photos, "
                                  "reply here."
                                  "".format(int(request.POST['NumMedia'])))
-
-        if request.POST.get('Body', None):
-            statement = Statement(related_tip=tip)
-            statement.body = request.POST['Body']
-            statement.save()
         else:
             response.redirect(reverse("sms:tip-statement"))
+
+        if request.POST.get('Body', None):
+            save_statement(request, tip)
     else:
         response.redirect(reverse("sms:enroll"))
 
@@ -239,9 +194,11 @@ def twilio_response(response):
     return HttpResponse(str(response), content_type="application/xml")
 
 
-def get_reporter(request):
-    query = Reporter.objects.filter(phone_number=request.POST['From'])
-    if query and len(query) == 1:
-        return query[0]
-
-    return None
+def save_statement(request, tip):
+    if request.POST.get('Body', None):
+        statement = Statement(related_tip=tip)
+        statement.body = request.POST['Body']
+        statement.save()
+        return statement
+    else:
+        return False
