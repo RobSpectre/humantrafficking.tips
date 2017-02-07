@@ -59,7 +59,7 @@ def email_tip(tip_id):
     results = []
     for admin in settings.ADMINS:
         results.append(send_mail("[humantrafficking.tips] New tip from {0}"
-                                 "".format(context['reporter'].name),
+                                 "".format(context['reporter']),
                                  "You received a new tip.",
                                  "no-reply@humantrafficking.tips",
                                  [admin[1]],
@@ -81,7 +81,7 @@ def sms_reporter(tip_id):
                                  "".format(settings.TWILIO_PHONE_NUMBER),
                                  to=context['reporter'].phone_number,
                                  body="Thank you for that tip with {0} "
-                                 "messages and {0} photos. The Human "
+                                 "messages and {1} photos. The Human "
                                  "Trafficking Response Unit "
                                  "will be in touch soon with followup "
                                  "questions.".format(statements_total,

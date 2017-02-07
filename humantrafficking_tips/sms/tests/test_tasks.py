@@ -16,6 +16,7 @@ from sms.models import Photo
 from sms.tasks import process_tip
 from sms.tasks import email_tip
 from sms.tasks import sms_reporter
+from sms.tasks import collect_tip_context
 
 
 class TestSmsTasksWithNewStatement(TestCase):
@@ -135,6 +136,43 @@ class TestSmsTasks(TestCase):
                                                    "Trafficking Response Unit"
                                                    " will be in touch soon with"
                                                    " followup questions.")
+
+    @override_settings(ADMINS=[('Shrimply Pibbles', 'pibbles@shrimply.org')])
+    @override_settings(TWILIO_ACCOUNT_SID="ACxxxxx")
+    @override_settings(TWILIO_AUTH_TOKEN="yyyyyyyy")
+    @override_settings(TWILIO_PHONE_NUMBER="15556667777")
+    @patch('twilio.rest.resources.Messages.create')
+    def test_correct_statement_and_photo_count(self, mock_messages):
+        mock_message = Mock()
+        mock_message.body.return_value = True
+        mock_messages.return_value = mock_message
+
+        Statement.objects.create(body="We could be kings...",
+                                 related_tip=self.tip)
+        Statement.objects.create(body="but we were damned from the start.",
+                                 related_tip=self.tip)
+
+        results = sms_reporter(self.tip.id)
+
+        self.assertTrue(results)
+        mock_messages.assert_called_once_with(from_="+15556667777",
+                                              to=self.reporter.phone_number,
+                                              body="Thank you for that tip "
+                                                   "with 3 messages and 1 "
+                                                   "photos. The Human "
+                                                   "Trafficking Response Unit"
+                                                   " will be in touch soon with"
+                                                   " followup questions.")
+
+    def test_collect_tip_context(self):
+        Statement.objects.create(body="We could be kings...",
+                                 related_tip=self.tip)
+        Statement.objects.create(body="but we were damned from the start.",
+                                 related_tip=self.tip)
+
+        context = collect_tip_context(self.tip.id)
+        self.assertEquals(3, len(context['statements']))
+        self.assertEquals(1, len(context['photos']))
 
 
 class TestSmsTasksWithSentTip(TestCase):
