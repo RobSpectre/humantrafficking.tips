@@ -18,8 +18,8 @@ from .models import Tip
 from .tasks import process_tip
 
 
-if sys.version_info[0] == 3:
-    text_type = str
+if sys.version_info[0] == 3:  # pragma: no cover
+    text_type = str  # pragma: no cover
 else:  # pragma: no cover
     text_type = unicode  # pragma: no cover
 

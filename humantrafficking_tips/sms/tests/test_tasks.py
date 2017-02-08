@@ -131,11 +131,10 @@ class TestSmsTasks(TestCase):
         mock_messages.assert_called_once_with(from_="+15556667777",
                                               to=self.reporter.phone_number,
                                               body="Thank you for that tip "
-                                                   "with 1 messages and 1 "
-                                                   "photos. The Human "
+                                                   "with 1 message and 1 "
+                                                   "photo.\nThe Human "
                                                    "Trafficking Response Unit"
-                                                   " will be in touch soon with"
-                                                   " followup questions.")
+                                                   " will be in touch soon.")
 
     @override_settings(ADMINS=[('Shrimply Pibbles', 'pibbles@shrimply.org')])
     @override_settings(TWILIO_ACCOUNT_SID="ACxxxxx")
@@ -159,10 +158,59 @@ class TestSmsTasks(TestCase):
                                               to=self.reporter.phone_number,
                                               body="Thank you for that tip "
                                                    "with 3 messages and 1 "
-                                                   "photos. The Human "
+                                                   "photo.\nThe Human "
                                                    "Trafficking Response Unit"
-                                                   " will be in touch soon with"
-                                                   " followup questions.")
+                                                   " will be in touch soon.")
+
+    @override_settings(ADMINS=[('Shrimply Pibbles', 'pibbles@shrimply.org')])
+    @override_settings(TWILIO_ACCOUNT_SID="ACxxxxx")
+    @override_settings(TWILIO_AUTH_TOKEN="yyyyyyyy")
+    @override_settings(TWILIO_PHONE_NUMBER="15556667777")
+    @patch('twilio.rest.resources.Messages.create')
+    def test_correct_statement_count_no_photo(self, mock_messages):
+        mock_message = Mock()
+        mock_message.body.return_value = True
+        mock_messages.return_value = mock_message
+
+        new_tip = Tip.objects.create(related_reporter=self.reporter)
+
+        Statement.objects.create(body="We could be kings...",
+                                 related_tip=new_tip)
+
+        results = sms_reporter(new_tip.id)
+
+        self.assertTrue(results)
+        mock_messages.assert_called_once_with(from_="+15556667777",
+                                              to=self.reporter.phone_number,
+                                              body="Thank you for that tip "
+                                                   "with 1 message.\nThe Human "
+                                                   "Trafficking Response Unit"
+                                                   " will be in touch soon.")
+
+    @override_settings(ADMINS=[('Shrimply Pibbles', 'pibbles@shrimply.org')])
+    @override_settings(TWILIO_ACCOUNT_SID="ACxxxxx")
+    @override_settings(TWILIO_AUTH_TOKEN="yyyyyyyy")
+    @override_settings(TWILIO_PHONE_NUMBER="15556667777")
+    @patch('twilio.rest.resources.Messages.create')
+    def test_correct_photo_count_no_statement(self, mock_messages):
+        mock_message = Mock()
+        mock_message.body.return_value = True
+        mock_messages.return_value = mock_message
+
+        new_tip = Tip.objects.create(related_reporter=self.reporter)
+
+        Photo.objects.create(url="https://example.com/shrimply.jpg",
+                             related_tip=new_tip)
+
+        results = sms_reporter(new_tip.id)
+
+        self.assertTrue(results)
+        mock_messages.assert_called_once_with(from_="+15556667777",
+                                              to=self.reporter.phone_number,
+                                              body="Thank you for that tip "
+                                                   "with 1 photo.\nThe Human "
+                                                   "Trafficking Response Unit"
+                                                   " will be in touch soon.")
 
     def test_collect_tip_context(self):
         Statement.objects.create(body="We could be kings...",

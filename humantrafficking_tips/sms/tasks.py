@@ -5,8 +5,8 @@ from datetime import timedelta
 from celery import shared_task
 
 from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from django.conf import settings
+from django.template.loader import render_to_string
 from django.utils import timezone
 
 from twilio.rest import TwilioRestClient
@@ -74,18 +74,12 @@ def sms_reporter(tip_id):
     client = TwilioRestClient(settings.TWILIO_ACCOUNT_SID,
                               settings.TWILIO_AUTH_TOKEN)
 
-    statements_total = len(context['statements'])
-    photos_total = len(context['photos'])
+    body = render_to_string("sms_reporter.html", context)[:-1]
 
     msg = client.messages.create(from_="+{0}"
                                  "".format(settings.TWILIO_PHONE_NUMBER),
                                  to=context['reporter'].phone_number,
-                                 body="Thank you for that tip with {0} "
-                                 "messages and {1} photos. The Human "
-                                 "Trafficking Response Unit "
-                                 "will be in touch soon with followup "
-                                 "questions.".format(statements_total,
-                                                     photos_total))
+                                 body=body)
     return msg.body
 
 

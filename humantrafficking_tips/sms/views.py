@@ -1,5 +1,6 @@
 from django.http import HttpResponse
 from django.urls import reverse
+from django.template.loader import render_to_string
 
 from twilio import twiml
 
@@ -175,10 +176,10 @@ def tip_photo(request, reporter=None, tip=None):
                     photo = Photo(related_tip=tip,
                                   url=request.POST['MediaUrl{0}'.format(i)])
                     photo.save()
-                response.message("Thank you for those {0} photos. If you have "
-                                 "any further information or photos, "
-                                 "reply here."
-                                 "".format(int(request.POST['NumMedia'])))
+                num_photos = int(request.POST['NumMedia'])
+                body = render_to_string("photo_reply.html",
+                                        context={"photos": num_photos})[:-1]
+                response.message(body)
         else:
             response.redirect(reverse("sms:tip-statement"))
 
